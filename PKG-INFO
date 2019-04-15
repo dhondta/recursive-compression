@@ -1,0 +1,11 @@
+Metadata-Version: 1.0
+Name: recursive-decompressor
+Version: 1.2
+Summary: Recursive decompression Python tool
+Home-page: https://github.com/dhondta/recursive-decompressor
+Author: Alexandre D'Hondt
+Author-email: alexandre.dhondt@gmail.com
+License: AGPLv3
+Description: Python tool for recursively decompressing nested archives using multiple algorithms (bzip2, rar, lzma, ...)
+Keywords: python, tool, recursive, decompression, bzip2, tar, rar, xz, arj, lzma, gzip, 7z, zip
+Platform: Linux
