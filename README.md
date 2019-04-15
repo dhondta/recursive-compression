@@ -58,6 +58,9 @@ This tool allows to recursively decompress an archive, using multiple Linux deco
 positional arguments:
   archive        input archive
 
+optional arguments:
+  -d             display last decompressed file in terminal (default: False)
+
 extra arguments:
   -h, --help     show this help message and exit
   -v, --verbose  verbose mode (default: False)
