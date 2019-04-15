@@ -1,119 +1,31 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 __author__ = "Alexandre D'Hondt"
-__version__ = "1.6"
+__version__ = "2.0"
 __copyright__ = "A. D'Hondt"
 __license__   = "agpl-3.0"
 __training__ = "ZSIS CTF - Trivia - Shining (4 points)"
-__doc__ = """
-This tool allows to recursively decompress an archive, using multiple Linux decompression
- tools. It currently supports the following tools:
-- bzip2
-- tar
-- unrar
-- unxz
-- arj
-- lzma
-- gunzip
-- 7za
-- unzip
-"""
-__examples__ = ["test.zip"]
+__examples__ = ["archive.zip", "archive.zip -d", "archive.zip -d -k 3"]
 
 
-# --------------------- IMPORTS SECTION ---------------------
-import shutil
-from collections import deque
-from subprocess import check_output as chout, PIPE
 from tinyscript import *
 
-
-check_output = lambda *a, **kw: chout(list(map(b, a[0])), *a[1:], **kw)
-
-
-# ------------------- TOOL'S LOGIC SECTION ------------------
-class RecursiveDecompressor(object):
-    formats = {
-        "7-zip archive data":    (["7za", "e"], "7z"),
-        "ARJ archive data":      (["arj", "e"], "arj"),
-        "bzip2 compressed data": (["bzip2", "-df"], None),
-        "POSIX tar archive":     (["tar", "-xvf"], None),
-        "RAR archive data":      (["unrar", "e"], None),
-        "XZ compressed data":    (["unxz", "-df"], "xz"),
-        "LZMA compressed data":  (["lzma", "-df"], "lzma"),
-        "gzip compressed data":  (["gunzip", "-df"], "gz"),
-        "Zip archive data":      (["unzip"], "zip"),
-    }
-    temp_dir = "/tmp/recursive-decompressor"
-    
-    def __init__(self, archive):
-        # setup the decompressor
-        self.__cleanup = deque([], 2)
-        if not os.path.exists(self.temp_dir):
-            os.makedirs(self.temp_dir)
-        else:
-            raise OSError("{} already exists".format(self.temp_dir))
-        self.archive, self.result = os.path.basename(archive), None
-        cwd = os.getcwd()
-        shutil.copy(archive, os.path.join(self.temp_dir, self.archive))
-        os.chdir(self.temp_dir)
-        # decompress until it cannot be anymore
-        while self.decompress() is not None:
-            continue
-        # tear down the decompressor
-        shutil.copy(self.archive, os.path.join(cwd, self.archive))
-        for i in range(len(self.__cleanup)):
-            os.remove(self.__cleanup.pop())    
-        os.chdir(cwd)
-        shutil.rmtree(self.temp_dir)
-    
-    def decompress(self):
-        # check for archive format
-        ft = check_output(['file', self.archive], stderr=PIPE)
-        ft = " ".join(ft.split(b(':'), 1)[1].strip().split()[:3]).rstrip(",")
-        logger.debug(ft)
-        try:
-            cmd, ext = self.formats[ft]
-        except KeyError:  # if the archive format is unknown, stop recursion
-            logger.warn("Nothing more to decompress")
-            self.result = self.archive
-            return
-        # if the extension must be enforced, update archive's filename
-        if ext is not None:
-            if not ext.startswith("."):
-                ext = "." + ext
-            if not self.archive.endswith(ext):
-                shutil.move(self.archive, self.archive + ext)
-                self.archive += ext
-        self.__cleanup.append(self.archive)
-        # now decompress, finding the decompressed file by applying a diff
-        #  with the old directory listing
-        old = set(os.listdir("."))
-        logger.info("Decompressing '{}'...".format(self.archive))
-        _ = check_output(list(map(b, list(cmd) + [self.archive])), stderr=PIPE)
-        try:
-            self.archive = list(set(os.listdir(".")) - old)[0]
-            if len(self.__cleanup) == 2:
-                try:
-                    os.remove(self.__cleanup.popleft())
-                except OSError:  # occurs when the decompression tool already
-                    pass         #  removes the old archive by itself
-        except IndexError:   # occurs when the decompressed file's name is the
-            pass             #  same as the uncompressed one
-        logger.debug("=> {}".format(self.archive))
-        return self.archive
+from decompressor import *
 
 
-# ---------------------- MAIN SECTION -----------------------
+__doc__ = """
+This tool allows to recursively decompress an archive, using multiple Linux
+ decompression tools. It currently supports the following tools:
+- {}
+""".format("\n- ".join(sorted(c[0] for c, _ in \
+                              RecursiveDecompressor.formats.values())))
+
+
 if __name__ == '__main__':
     parser.add_argument("archive", help="input archive")
     parser.add_argument("-d", dest="display", action="store_true",
                         help="display last decompressed file in terminal")
+    parser.add_argument("-k", "--keep", type=int, metavar="N", default=1,
+                        help="keep the last N levels of archives")
     initialize(globals())
-    rd = RecursiveDecompressor(args.archive)
-    if args.display:
-        try:
-            with open(rd.result, 'rb') as f:
-                logger.success(f.read())
-        except Exception as e:
-            logger.failure(str(e))
+    RecursiveDecompressor(args.archive, args.keep, args.display, logger=logger)

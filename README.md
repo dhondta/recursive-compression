@@ -35,7 +35,7 @@ $ sudo pip install recursive-decompressor
 
 ```session
 $ recursive-decompressor --help
-usage: recursive-decompressor [-h] [-v] archive
+usage: recursive-decompressor [-d] [-k N] [-h] [-v] archive
 
 RecursiveDecompressor v1.6
 Author   : Alexandre D'Hondt
@@ -43,29 +43,32 @@ Copyright: © 2019 A. D'Hondt
 License  : GNU Affero General Public License v3.0
 Training : ZSIS CTF - Trivia - Shining (4 points)
 
-This tool allows to recursively decompress an archive, using multiple Linux decompression
- tools. It currently supports the following tools:
+This tool allows to recursively decompress an archive, using multiple Linux
+ decompression tools. It currently supports the following tools:
+- 7za
+- arj
 - bzip2
+- gunzip
+- lzma
 - tar
 - unrar
 - unxz
-- arj
-- lzma
-- gunzip
-- 7za
 - unzip
 
 positional arguments:
-  archive        input archive
+  archive         input archive
 
 optional arguments:
-  -d             display last decompressed file in terminal (default: False)
+  -d              display last decompressed file in terminal (default: False)
+  -k N, --keep N  keep the last N levels of archives (default: 1)
 
 extra arguments:
-  -h, --help     show this help message and exit
-  -v, --verbose  verbose mode (default: False)
+  -h, --help      show this help message and exit
+  -v, --verbose   verbose mode (default: False)
 
 Usage examples:
-  recursive-decompressor test.zip
+  recursive-decompressor archive.zip
+  recursive-decompressor archive.zip -d
+  recursive-decompressor archive.zip -d -k 3
 
 ```

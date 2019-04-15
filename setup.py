@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 from os.path import abspath, dirname, join
-from setuptools import setup
+from setuptools import setup, find_packages
 try: # for pip >= 10
     from pip._internal.req import parse_requirements
 except ImportError: # for pip <= 9.0.3
@@ -15,10 +15,11 @@ with open(join(currdir, 'README.md')) as f:
 requirements = parse_requirements("requirements.txt", session=False)
 setup(
   name = "recursive-decompressor",
+  packages = find_packages(),
   author = "Alexandre D\'Hondt",
   author_email = "alexandre.dhondt@gmail.com",
   url = "https://github.com/dhondta/recursive-decompressor",
-  version = "1.6",
+  version = "2.0",
   license = "AGPLv3",
   description = "Tool for recursively decompressing nested archives using"
                 " multiple algorithms (bzip2, rar, lzma, ...)",
