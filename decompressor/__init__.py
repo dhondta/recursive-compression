@@ -6,7 +6,7 @@ from collections import deque
 from os import chdir, getcwd, getpid, kill, listdir, makedirs, remove
 from os.path import basename, exists, join
 from signal import getsignal, signal, SIGINT
-from six import b
+from six import b, u
 from string import printable
 from subprocess import check_output as chout, CalledProcessError, PIPE
 
@@ -17,7 +17,7 @@ __all__ = ["RecursiveDecompressor"]
 def check_output(*args, **kwargs):
     try:
         return chout(list(map(b, args[0])), *args[1:], **kwargs)
-    except CalledProcessError:  # can occur when Ctrl+C
+    except (AttributeError, CalledProcessError):  # can occur when Ctrl+C
         pass
 
 
@@ -161,7 +161,8 @@ class RecursiveDecompressor(object):
                 continue
             # check for archive format
             ft = check_output(["file", archive], stderr=PIPE).strip()
-            ft = " ".join(ft.split(b(':'), 1)[1].split()[:3]).rstrip(',')
+            ft = b(" ").join(ft.split(b(':'), 1)[1].split()[:3]).rstrip(b(','))
+            ft = ft.decode()
             if self.logger is not None:
                 self.logger.debug(ft)
             try:
@@ -175,8 +176,8 @@ class RecursiveDecompressor(object):
                 if self.__disp:
                     try:
                         with open(archive, 'rb') as f:
-                            content = f.read().strip()
-                            n = sum([c in printable for c in content])
+                            content = f.read().strip().decode()
+                            n = sum([str(c) in printable for c in content])
                             if float(n) / len(content) < .9:
                                 content = "<<< Non-printable content >>>"
                             if self.logger is not None:

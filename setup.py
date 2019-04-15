@@ -19,7 +19,7 @@ setup(
   author = "Alexandre D\'Hondt",
   author_email = "alexandre.dhondt@gmail.com",
   url = "https://github.com/dhondta/recursive-decompressor",
-  version = "2.0",
+  version = "2.1",
   license = "AGPLv3",
   description = "Tool for recursively decompressing nested archives using"
                 " multiple algorithms (bzip2, rar, lzma, ...)",
