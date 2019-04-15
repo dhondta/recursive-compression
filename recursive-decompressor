@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 __author__ = "Alexandre D'Hondt"
-__version__ = "1.5"
+__version__ = "1.6"
 __copyright__ = "A. D'Hondt"
 __license__   = "agpl-3.0"
 __training__ = "ZSIS CTF - Trivia - Shining (4 points)"
@@ -33,7 +33,7 @@ check_output = lambda *a, **kw: chout(list(map(b, a[0])), *a[1:], **kw)
 
 # ------------------- TOOL'S LOGIC SECTION ------------------
 class RecursiveDecompressor(object):
-    FORMATS = {
+    formats = {
         "7-zip archive data":    (["7za", "e"], "7z"),
         "ARJ archive data":      (["arj", "e"], "arj"),
         "bzip2 compressed data": (["bzip2", "-df"], None),
@@ -44,27 +44,36 @@ class RecursiveDecompressor(object):
         "gzip compressed data":  (["gunzip", "-df"], "gz"),
         "Zip archive data":      (["unzip"], "zip"),
     }
+    temp_dir = "/tmp/recursive-decompressor"
     
     def __init__(self, archive):
+        # setup the decompressor
         self.__cleanup = deque([], 2)
-        self.__tmp = ".{}".format(archive)
-        shutil.copy(archive, self.__tmp)  # create a hidden backup copy
-        self.archive = archive
-        self.result = None
+        if not os.path.exists(self.temp_dir):
+            os.makedirs(self.temp_dir)
+        else:
+            raise OSError("{} already exists".format(self.temp_dir))
+        self.archive, self.result = os.path.basename(archive), None
+        cwd = os.getcwd()
+        shutil.copy(archive, os.path.join(self.temp_dir, self.archive))
+        os.chdir(self.temp_dir)
+        # decompress until it cannot be anymore
         while self.decompress() is not None:
             continue
-        shutil.move(self.__tmp, archive)  # restore the backup copy
-        # remove all remaining files
+        # tear down the decompressor
+        shutil.copy(self.archive, os.path.join(cwd, self.archive))
         for i in range(len(self.__cleanup)):
             os.remove(self.__cleanup.pop())    
+        os.chdir(cwd)
+        shutil.rmtree(self.temp_dir)
     
     def decompress(self):
         # check for archive format
-        ft = check_output(['file', self.archive], stderr=PIPE).split(':', 1)[1]
-        ft = " ".join(ft.strip().split()[:3]).rstrip(",")
+        ft = check_output(['file', self.archive], stderr=PIPE)
+        ft = " ".join(ft.split(b(':'), 1)[1].strip().split()[:3]).rstrip(",")
         logger.debug(ft)
         try:
-            cmd, ext = self.FORMATS[ft]
+            cmd, ext = self.formats[ft]
         except KeyError:  # if the archive format is unknown, stop recursion
             logger.warn("Nothing more to decompress")
             self.result = self.archive
@@ -103,5 +112,8 @@ if __name__ == '__main__':
     initialize(globals())
     rd = RecursiveDecompressor(args.archive)
     if args.display:
-        with open(rd.result, 'rb') as f:
-            logger.success(f.read())
+        try:
+            with open(rd.result, 'rb') as f:
+                logger.success(f.read())
+        except Exception as e:
+            logger.failure(str(e))
