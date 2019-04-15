@@ -37,7 +37,7 @@ $ sudo pip install recursive-decompressor
 $ recursive-decompressor --help
 usage: recursive-decompressor [-h] [-v] archive
 
-RecursiveDecompressor v1.3
+RecursiveDecompressor v1.6
 Author   : Alexandre D'Hondt
 Copyright: © 2019 A. D'Hondt
 License  : GNU Affero General Public License v3.0
