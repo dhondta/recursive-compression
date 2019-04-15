@@ -15,7 +15,7 @@
 
 ## Introduction
 
-This tool relies on [Tinyscript](https://github.com/dhondta/tinyscript) and implements Bruce Schneier's [Solitaire Cipher](https://www.schneier.com/academic/solitaire/).
+This tool relies on [Tinyscript](https://github.com/dhondta/tinyscript) and allows to recursively decompress nested archives according to various decompression algorithms.
 
 
 ## Installation
@@ -37,7 +37,7 @@ $ sudo pip install recursive-decompressor
 $ recursive-decompressor --help
 usage: recursive-decompressor [-h] [-v] archive
 
-RecursiveDecompressor v1.2
+RecursiveDecompressor v1.3
 Author   : Alexandre D'Hondt
 Copyright: © 2019 A. D'Hondt
 License  : GNU Affero General Public License v3.0

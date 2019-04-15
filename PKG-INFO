@@ -1,6 +1,6 @@
 Metadata-Version: 1.0
 Name: recursive-decompressor
-Version: 1.2
+Version: 1.3
 Summary: Recursive decompression Python tool
 Home-page: https://github.com/dhondta/recursive-decompressor
 Author: Alexandre D'Hondt

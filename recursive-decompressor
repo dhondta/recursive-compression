@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 __author__ = "Alexandre D'Hondt"
-__version__ = "1.2"
+__version__ = "1.3"
 __copyright__ = "A. D'Hondt"
 __license__   = "agpl-3.0"
 __training__ = "ZSIS CTF - Trivia - Shining (4 points)"
@@ -24,87 +24,84 @@ __examples__ = ["test.zip"]
 # --------------------- IMPORTS SECTION ---------------------
 import shutil
 from collections import deque
-from subprocess import check_output, PIPE
+from subprocess import check_output as chout, PIPE
 from tinyscript import *
 
 
-# -------------------- FUNCTIONS SECTION --------------------
-def _log_filetype(filename, magic=None):
-    try:
-        file_out = check_output(['file', filename]).strip()
-        logger.debug(filename if magic is None else \
-                     "{} ({})".format(file_out, magic))
-    except:
-        pass
+check_output = lambda *a, **kw: chout(list(map(b, a[0])), *a[1:], **kw)
 
 
-def decompress(filename):
-    logger.info("Decompressing '{}'...".format(filename))
-    ft = check_output(['file', filename]).split(':', 1)[1].strip()
-    logger.debug(ft)
-    if ft.startswith("bzip2 compressed data"):
+# ------------------- TOOL'S LOGIC SECTION ------------------
+class RecursiveDecompressor(object):
+    FORMATS = {
+        "7-zip archive data":    (["7za", "e"], "7z"),
+        "ARJ archive data":      (["arj", "e"], "arj"),
+        "bzip2 compressed data": (["bzip2", "-df"], None),
+        "POSIX tar archive":     (["tar", "-xvf"], None),
+        "RAR archive data":      (["unrar", "e"], None),
+        "XZ compressed data":    (["unxz", "-df"], "xz"),
+        "LZMA compressed data":  (["lzma", "-df"], "lzma"),
+        "gzip compressed data":  (["gunzip", "-df"], "gz"),
+        "Zip archive data":      (["unzip"], "zip"),
+    }
+    
+    def __init__(self, archive):
+        self.__cleanup = deque([], 2)
+        self.__tmp = ".{}".format(archive)
+        shutil.copy(archive, self.__tmp)  # create a hidden backup copy
+        self.archive = archive
+        self.result = None
+        while self.decompress() is not None:
+            continue
+        shutil.move(self.__tmp, archive)  # restore the backup copy
+        # remove all remaining files
+        for i in range(len(self.__cleanup)):
+            os.remove(self.__cleanup.pop())    
+    
+    def decompress(self):
+        # check for archive format
+        ft = check_output(['file', self.archive], stderr=PIPE).split(':', 1)[1]
+        ft = " ".join(ft.strip().split()[:3]).rstrip(",")
+        logger.debug(ft)
+        try:
+            cmd, ext = self.FORMATS[ft]
+        except KeyError:  # if the archive format is unknown, stop recursion
+            logger.warn("Nothing more to decompress")
+            self.result = self.archive
+            return
+        # if the extension must be enforced, update archive's filename
+        if ext is not None:
+            if not ext.startswith("."):
+                ext = "." + ext
+            if not self.archive.endswith(ext):
+                shutil.move(self.archive, self.archive + ext)
+                self.archive += ext
+        self.__cleanup.append(self.archive)
+        # now decompress, finding the decompressed file by applying a diff
+        #  with the old directory listing
         old = set(os.listdir("."))
-        _ = check_output(["bzip2", "-df", filename], stderr=PIPE)
-        return list(set(os.listdir(".")) - old)[0]
-    elif ft.startswith("POSIX tar archive"):
-        return check_output(["tar", "-xvf", filename]).strip()
-    elif ft.startswith("RAR archive data"):
-        return check_output(["unrar", "e", filename], stderr=PIPE) \
-               .split("Extracting  ", 1)[1].split("        ", 1)[0].strip()
-    elif ft.startswith("XZ compressed data"):
-        if not filename.endswith(".xz"):
-            shutil.move(filename, filename + ".xz")
-        _ = check_output(["unxz", "-df", filename + ".xz"], stderr=PIPE)
-        return filename
-    elif ft.startswith("ARJ archive data"):
-        if not filename.endswith(".arj"):
-            shutil.move(filename, filename + ".arj")
-        return check_output(["arj", "e", filename + ".arj"], stderr=PIPE) \
-               .split("Extracting ", 1)[1].split("   ", 1)[0].strip()
-    elif ft.startswith("LZMA compressed data"):
-        if not filename.endswith(".lzma"):
-            shutil.move(filename, filename + ".lzma")
-        _ = check_output(["lzma", "-df", filename + ".lzma"], stderr=PIPE)
-        return filename
-    elif ft.startswith("gzip compressed data"):
-        if not filename.endswith(".gz"):
-            shutil.move(filename, filename + ".gz")
-        _ = check_output(["gunzip", "-df", filename + ".gz"], stderr=PIPE)
-        return filename
-    elif ft.startswith("7-zip archive data"):
-        if not filename.endswith(".7z"):
-            shutil.move(filename, filename + ".7z")
-        old = set(os.listdir("."))
-        _ = check_output(["7za", "e", filename + ".7z"], stderr=PIPE)
-        return list(set(os.listdir(".")) - old)[0]
-    elif ft.startswith("Zip archive data"):
-        if not filename.endswith(".zip"):
-            shutil.move(filename, filename + ".zip")
-        _ = check_output(["unzip", filename], stderr=PIPE)
-        for l in _.split('\n'):
-            if "extracting" in l:
-                return l.split("extracting:", 1)[1].strip()
-    logger.warn("Nothing more to decompress")
+        logger.info("Decompressing '{}'...".format(self.archive))
+        _ = check_output(list(map(b, list(cmd) + [self.archive])), stderr=PIPE)
+        try:
+            self.archive = list(set(os.listdir(".")) - old)[0]
+            if len(self.__cleanup) == 2:
+                try:
+                    os.remove(self.__cleanup.popleft())
+                except OSError:  # occurs when the decompression tool already
+                    pass         #  removes the old archive by itself
+        except IndexError:   # occurs when the decompressed file's name is the
+            pass             #  same as the uncompressed one
+        logger.debug("=> {}".format(self.archive))
+        return self.archive
 
 
 # ---------------------- MAIN SECTION -----------------------
 if __name__ == '__main__':
     parser.add_argument("archive", help="input archive")
+    parser.add_argument("-d", dest="display", action="store_true",
+                        help="display last decompressed file in terminal")
     initialize(globals())
-    filename = args.archive
-    cleanup = deque([], 2)
-    # start recursively decompressing the archive
-    while True:
-        filename = decompress(filename)
-        if filename is None:
-            try:  # do not cleanup last decompressed file
-                cleanup.pop()
-            except:
-                pass
-            break
-        cleanup.append(filename)
-        if len(cleanup) == 2:
-            os.remove(cleanup.popleft())
-    # remove all remaining files
-    for i in range(len(cleanup)):
-        os.remove(cleanup.pop())
+    rd = RecursiveDecompressor(args.archive)
+    if args.display:
+        with open(rd.result, 'rb') as f:
+            logger.success(f.read())
