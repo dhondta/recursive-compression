@@ -5,7 +5,7 @@ __version__ = "2.1"
 __copyright__ = "A. D'Hondt"
 __license__   = "agpl-3.0"
 __training__ = "ZSIS CTF - Trivia - Shining (4 points)"
-__examples__ = ["archive.zip", "archive.zip -d", "archive.zip -d -k 3"]
+__examples__ = ["archive.zip", "archive.zip -d"]
 
 
 from tinyscript import *

@@ -75,9 +75,10 @@ class Decompressor(Base):
                   unless it is compressed with an out-of-scope decompressor)
         """
         a = self.archives.pop()
-        ext = Decompressor.format(a)
+        magic, ext = Decompressor.format(a)
         if ext is None or Base.interrupted:
             shutil.move(a, Decompressor.ensure_new(join(self.cwd, a)))
+            self.logger.debug(magic)
             return
         # rename file with its archive extension if relevant
         new = "{}.{}".format(a, ext) if ext not in a else a
@@ -132,7 +133,7 @@ class Decompressor(Base):
                             getattr(self.logger, "success", self.logger.info)(c)
                     except:
                         pass
-                h, nf, nfp = Base.hash_file(f), f, join(self.cwd, f)
+                h, nf, nfp = hashlib.sha256_file(f), f, join(self.cwd, f)
                 while True:                
                     oh, c = self.files.get(nf) or (None, 0)
                     # if same hashes, increment count ; if count=0, create entry

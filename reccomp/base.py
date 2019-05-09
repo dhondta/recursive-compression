@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
-import hashlib
 import logging
 import shutil
 from magic import from_file as get_magic
@@ -10,10 +9,11 @@ from patoolib import create_archive, extract_archive, ArchivePrograms
 from patoolib.util import PatoolError
 from random import choice
 from signal import getsignal, signal, SIGINT
+from tinyscript import hashlib
 from tinyscript.helpers import silent
 
 
-__all__ = ["compress", "decompress", "shutil", "Base", "PatoolError"]
+__all__ = ["compress", "decompress", "hashlib", "shutil", "Base", "PatoolError"]
 
 
 SHORTNAMES = {'bzip2': "bz2", 'gzip': "gz"}
@@ -150,24 +150,5 @@ class Base(object):
             t = t.lower()
             t = SUBSTITUTIONS.get(t, t)
             if t in VALID_DECOMPR_FORMATS:
-                return SHORTNAMES.get(t, t)
-    
-    @staticmethod
-    def hash_file(filename, algo="sha256"):
-        """
-        This extends hashlib's hashing function to hash a file per block.
-
-        :param filename: name of the file to be hashed
-        :return:         ALGO(file)
-        """
-        try:
-            h = hashlib.new(algo)
-            with open(filename, 'rb') as f:
-                while True:
-                    b = f.read(h.block_size)
-                    if not b:
-                        break
-                    h.update(b)
-            return h.hexdigest()
-        except OSError:
-            return
+                return m, SHORTNAMES.get(t, t)
+        return m, None

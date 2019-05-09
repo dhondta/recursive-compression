@@ -4,7 +4,7 @@ __author__ = "Alexandre D'Hondt"
 __version__ = "1.0"
 __copyright__ = "A. D'Hondt"
 __license__   = "agpl-3.0"
-__examples__ = ["file1 file2 file3 -r 10", "file -c abcd -n 10", "-p"]
+__examples__ = ["file1 file2 file3 -r 10", "file -c abcd -n 10", "file -p"]
 
 
 from tinyscript import *
