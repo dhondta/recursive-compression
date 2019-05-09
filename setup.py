@@ -14,20 +14,20 @@ with open(join(currdir, 'README.md')) as f:
 
 requirements = parse_requirements("requirements.txt", session=False)
 setup(
-  name = "recursive-decompressor",
+  name = "recursive-compression",
   packages = find_packages(),
   author = "Alexandre D\'Hondt",
   author_email = "alexandre.dhondt@gmail.com",
-  url = "https://github.com/dhondta/recursive-decompressor",
+  url = "https://github.com/dhondta/recursive-compression",
   version = "2.1",
   license = "AGPLv3",
-  description = "Tool for recursively decompressing nested archives using"
+  description = "Tool for recursively (de)compressing nested archives using"
                 " multiple algorithms (bzip2, rar, lzma, ...)",
   long_description=long_descr,
   long_description_content_type='text/markdown',
-  keywords = ["python", "tool", "recursive", "decompression", "bzip2", "tar",
-              "rar", "xz", "arj", "lzma", "gzip", "7z", "zip"],
-  scripts = ["recursive-decompressor"],
+  keywords = ["python", "tool", "recursive", "compression", "decompression",
+              "bzip2", "tar", "rar", "xz", "arj", "lzma", "gzip", "7z", "zip"],
+  scripts = ["rec-comp", "rec-decomp"],
   classifiers = [
     'Development Status :: 4 - Beta',
     'Environment :: Console',

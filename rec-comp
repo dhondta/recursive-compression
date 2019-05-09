@@ -1,0 +1,37 @@
+#!/usr/bin/python2
+# -*- coding: UTF-8 -*-
+__author__ = "Alexandre D'Hondt"
+__version__ = "0.0"
+__copyright__ = "A. D'Hondt"
+__license__   = "agpl-3.0"
+__examples__ = ["file1 file2 file3 -r 10", "file -c abcd -n 10", "-p"]
+
+
+from tinyscript import *
+
+from reccomp import Compressor
+
+
+__doc__ = """
+This tool allows to recursively compress an archive relying on Patool, a Python
+ library supporting various archive formats.
+
+Note: Password-protected compression is not supported.
+"""
+
+
+if __name__ == '__main__':
+    parser.add_argument("files", nargs="+", type=file_exists,
+                        help="files to be archived")
+    parser.add_argument("-c", dest="charset",
+                        default=string.ascii_letters+string.digits,
+                        help="character set of random archive name")
+    parser.add_argument("-d", dest="delete", action="store_true",
+                        help="delete input files")
+    parser.add_argument("-n", dest="nchars", type=pos_int, default=8,
+                        help="length of random archive name")
+    parser.add_argument("-r", "--rounds", type=pos_int, default=10,
+                        help="number of compression rounds")
+    initialize(globals(), add_progress=True, add_time=True)
+    Compressor(*args.files, rounds=args.rounds, n=args.nchars,
+               charset=args.charset, pbar=progressbar, logger=logger)
