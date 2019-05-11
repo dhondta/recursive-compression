@@ -2,7 +2,8 @@
 # -*- coding: UTF-8 -*-
 from collections import deque
 from os import listdir, remove, rename
-from os.path import basename, isdir, join
+from os.path import basename, exists, isdir, join, splitext
+from string import printable
 
 from .base import *
 
@@ -33,8 +34,9 @@ class Decompressor(Base):
         self.__cleanup = deque([], self.cleanup_len)
         self.__disp = display
         self.archives = [aname]
+        self.last = aname
         self.results = []
-        self._to_temp_dir(aname, move=move)
+        self._to_temp_dir(archive, move=move)
         # decompress until it cannot be anymore
         self.rounds = 0
         while len(self.archives) > 0:
@@ -44,24 +46,10 @@ class Decompressor(Base):
         if self.rounds > 0 and not Base.interrupted:
             self.logger.info("Rounds: {}".format(self.rounds))
             self.logger.info("File{}".format(["  :", "s :"][len(files) > 1]))
-            for f, i in sorted(self.files.items(), key=lambda x: x[0]):
-                h, c = i
+            for f in files:
+                h, c = self.files[f]
                 print("- {} ({}){}".format(f, h, ["", " x{}".format(c)][c > 1]))
-        if Base.interrupted:
-            self.__copy()
         self._to_orig_dir()
-    
-    def __copy(self, archive=None):
-        """
-        Shortcut for copying an archive from the temporary folder.
-        """
-        _ = self.archives if archive is None else [archive]
-        for a in _:
-            n = Decompressor.ensure_new(join(self.cwd, a))
-            try:
-                shutil.copy(a, n)
-            except IOError:  # can occur when a tool removes the archive once
-                pass         #  decompressed
 
     def __decompress(self):
         """
@@ -76,38 +64,40 @@ class Decompressor(Base):
         """
         a = self.archives.pop()
         magic, ext = Decompressor.format(a)
-        if ext is None or Base.interrupted:
+        if Base.interrupted:
             shutil.move(a, Decompressor.ensure_new(join(self.cwd, a)))
             self.logger.debug(magic)
             return
         # rename file with its archive extension if relevant
-        new = "{}.{}".format(a, ext) if ext not in a else a
-        if new != a:
-            rename(a, new)
-        self.__cleanup.append(new)
+        new = "{}.{}".format(self.temp_name, ext)
+        rename(a, new)
+        self.__cleanup.append((a, new))
         # now decompress
         old = set(listdir("."))
-        self.logger.debug("Decompressing '{}'...".format(new))
-        self.__new_files(old, decompress(new))
+        self.logger.debug("Decompressing '{}' ({})...".format(a, magic))
+        self.__new_files(old, a, *decompress(new))
         if Base.interrupted:
-            shutil.move(a, Decompressor.ensure_new(join(self.cwd, a)))
+            shutil.move(new, Decompressor.ensure_new(join(self.cwd, a)))
             return
         self.rounds += 1
         # cleanup old archives
         if len(self.__cleanup) == self.__cleanup.maxlen:
             try:
-                remove(self.__cleanup.popleft())
+                remove(self.__cleanup.popleft()[1])
             except OSError:  # occurs when the decompression tool already
                 pass         #  removed the old archive by itself
     
-    def __new_files(self, old, archive=None):
+    def __new_files(self, old, arch_name, temp_name, target):
         """
         This determines and updates the list of decompressed files for the next
          iteration.
         
-        :param old:     previous directory listing
-        :param archive: new archive name
+        :param old:       previous directory listing
+        :param arch_name: original archive name
+        :param temp_name: new archive name
+        :param target:    extracted target name
         """
+        tn = splitext(temp_name)[0]
         # find the decompressed file by a diff with the old directory listing
         new = list(set(listdir(".")) - old)
         # if the result is a folder ; the archive is assumed to have been
@@ -121,8 +111,12 @@ class Decompressor(Base):
         # now sort decompressed files, displaying usual files if relevant and
         #  adding new archives to the list for future decompression
         for f in new:
-            ext = Decompressor.format(f)
+            _, ext = Decompressor.format(f)
             if ext is None:
+                if len(new) == 1 and self.last[1] in self.not_first:
+                    f = self.last[0]
+                    if not exists(f):
+                        shutil.move(self.__cleanup[-1][1], f)
                 if self.__disp:
                     try:
                         with open(f, 'rb') as fr:
@@ -134,11 +128,12 @@ class Decompressor(Base):
                     except:
                         pass
                 h, nf, nfp = hashlib.sha256_file(f), f, join(self.cwd, f)
-                while True:                
-                    oh, c = self.files.get(nf) or (None, 0)
+                while True:
+                    old_h, c = self.files.get(nf) or (None, 0)
                     # if same hashes, increment count ; if count=0, create entry
-                    if oh == h or c == 0:
+                    if old_h == h or c == 0:
                         self.files[nf] = (h, c + 1)
+                        #print(listdir(self.temp_dir))
                         shutil.move(nf, nfp)
                         break
                     # otherwise, update filename to something not existing
@@ -151,5 +146,11 @@ class Decompressor(Base):
                         #        don't check if the hash matches this of another
                         #        file in the self.files dictionary
             else:
+                # handle here the case when an archive [filename].[ext]
+                #  decompresses to [filename]
+                if f == tn:
+                    shutil.move(f, arch_name)
+                    f = arch_name
+                self.last = (f, ext)
                 self.archives.insert(0, f)
             self.logger.debug("=> {}".format(f))

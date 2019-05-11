@@ -3,7 +3,7 @@
 import logging
 import shutil
 from magic import from_file as get_magic
-from os import chdir, getcwd, makedirs
+from os import chdir, getcwd, listdir, makedirs
 from os.path import basename, exists, join, splitext
 from patoolib import create_archive, extract_archive, ArchivePrograms
 from patoolib.util import PatoolError
@@ -17,11 +17,11 @@ __all__ = ["compress", "decompress", "hashlib", "shutil", "Base", "PatoolError"]
 
 
 SHORTNAMES = {'bzip2': "bz2", 'gzip': "gz"}
-SUBSTITUTIONS = {'shell': "shar"}
-VALID_COMPR_FORMATS = [SHORTNAMES.get(k, k) for k, v in \
-                       ArchivePrograms.items() if v.get('create') is not None]
+SUBSTITUTIONS = {'shell': "shar", '7-zip': "7z"}
+VALID_COMPR_FORMATS = [SHORTNAMES.get(k, k) for k, v in ArchivePrograms.items()\
+                       if v.get('create') is not None or None in v.keys()]
 VALID_DECOMPR_FORMATS = [k for k, v in ArchivePrograms.items() \
-                         if v.get('extract') is not None]
+                         if v.get('extract') is not None or None in v.keys()]
 
 
 @silent
@@ -36,16 +36,17 @@ def decompress(*args, **kwargs):
     """ Alias for patool.extract_archive, silencing verbose messages. """
     kwargs['verbosity'] = -1
     try:
-        return extract_archive(*args, **kwargs)
+        return args[0], extract_archive(*args, **kwargs)
     except PatoolError:
-        return args[0]
+        return args[0], None
 
 
 class Base(object):
     """ Dummy base class for setting up an interrupt handler. """
     files = {}
     interrupted = False
-    temp_dir = "/tmp/reccomp-{}"
+    not_first = ["bzip2", "lzma", "shell", "xz"]
+    temp_dir = "/tmp/reccomp"
 
     def __init__(self, logger=None):
         if logger is None:
@@ -96,23 +97,42 @@ class Base(object):
         Choose a random valid archive extension.
         """
         ext = choice(VALID_COMPR_FORMATS)
-        while ext in self._bad_formats or ext == self._last or \
-            (self.round == 1 and ext in self.not_first):
-            if self.round == 1 and ext in self.not_first:
+        bad = self.round == 1 and len(self.files) > 1 and ext in self.not_first
+        while ext in self._bad_formats or ext == self._last or bad:
+            if bad:
                 self.logger.debug(ext)
-                self.logger.debug("[!] This format can't be used at round 1")
+                self.logger.debug("[!] This format can't be used at round 1 for"
+                                  " multiple files")
             ext = choice(VALID_COMPR_FORMATS)
         self._last = ext
         return ext
     
     @property
-    def name(self):
+    def arch_name(self):
         """
-        Choose a non-existing random filename.
+        Choose a non-existing random archive filename.
         """
+        if self.round == 1 and len(self.files) == 1:
+            return self.files[0]
         name = "".join(choice(self.charset) for i in range(self.n))
         while exists(name):
             name = "".join(choice(self.charset) for i in range(self.n))
+        return name
+    
+    @property
+    def temp_name(self):
+        """
+        Choose a non-existing random temporary archive filename.
+        
+        Note: This is aimed to avoid collisions when an archive is decompressed
+               to its own name without its extension while another previous
+               archive exists with the same name.
+        """
+        a, n = "0123456789abcdef", 64
+        filenames = [f for f, e in [splitext(fn) for fn in listdir(".")]]
+        name = "".join(choice(a) for i in range(n))
+        while name in filenames:
+            name = "".join(choice(a) for i in range(n))
         return name
     
     @staticmethod
@@ -150,5 +170,5 @@ class Base(object):
             t = t.lower()
             t = SUBSTITUTIONS.get(t, t)
             if t in VALID_DECOMPR_FORMATS:
-                return m, SHORTNAMES.get(t, t)
-        return m, None
+                return " ".join(m), SHORTNAMES.get(t, t)
+        return " ".join(m), None

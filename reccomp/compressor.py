@@ -22,8 +22,6 @@ class Compressor(Base):
     :param rounds:  number of compression rounds
     :param logger:  logging
     """
-    not_first = ["lzma", "xz"]
-    
     def __init__(self, *files, **kwargs):
         super(Compressor, self).__init__(kwargs.pop("logger"))
         # setup the compressor
@@ -65,7 +63,7 @@ class Compressor(Base):
             # compress files
             self.logger.debug("Compressing '{}'..."
                               .format(new or "', '".join(self.files)))
-            new = self.__rec_compress(self.name, self.files)
+            new = self.__rec_compress(self.arch_name, self.files)
             # cleanup previous archive
             if i > 0:
                 f = self.files[0]

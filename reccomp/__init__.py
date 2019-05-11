@@ -22,4 +22,4 @@ code_replace(patoolib.util.run,
 # patch patoolib.util.guess_mime_file to force mime DB guess for some formats
 code_replace(patoolib.util.guess_mime_file,
              "if ext.lower() in ('.alz',):",
-             "if ext.lower() in ('.alz','.bz2','.xz','.gz'):")
+             "if ext.lower() in ('.alz','.bz2','.gz','.xz'):")
