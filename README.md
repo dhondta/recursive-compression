@@ -55,9 +55,15 @@ positional arguments:
 optional arguments:
   -c CHARSET            character set of random archive name (default: abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789)
   -d                    delete input files (default: False)
+  -f FORMATS            compression algorithms (default: all)
   -n NCHARS             length of random archive name (default: 8)
   -r ROUNDS, --rounds ROUNDS
                         number of compression rounds (default: 10)
+  --reverse             reverse byte order (default: False)
+
+data options:
+  --data DATA           data to be embedded (default: None)
+  --chunks CHUNKS       number of chunks the data should be split in (default: 10)
 
 extra arguments:
   -h, --help            show this help message and exit
