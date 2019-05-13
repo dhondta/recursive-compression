@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
+import codecs
 import logging
 import shutil
 from magic import from_file as get_magic
@@ -9,19 +10,21 @@ from patoolib import create_archive, extract_archive, ArchivePrograms
 from patoolib.util import PatoolError
 from random import choice
 from signal import getsignal, signal, SIGINT
+from six import b
 from tinyscript import hashlib
 from tinyscript.helpers import silent
 
 
-__all__ = ["compress", "decompress", "hashlib", "shutil", "Base", "PatoolError"]
+__all__ = ["b", "codecs", "compress", "decompress", "hashlib", "shutil", "Base",
+           "PatoolError"]
 
 
 SHORTNAMES = {'bzip2': "bz2", 'gzip': "gz"}
 SUBSTITUTIONS = {'shell': "shar", '7-zip': "7z"}
-VALID_COMPR_FORMATS = [SHORTNAMES.get(k, k) for k, v in ArchivePrograms.items()\
-                       if v.get('create') is not None or None in v.keys()]
-VALID_DECOMPR_FORMATS = [k for k, v in ArchivePrograms.items() \
-                         if v.get('extract') is not None or None in v.keys()]
+COMPR_FORMATS = [SHORTNAMES.get(k, k) for k, v in ArchivePrograms.items()\
+                 if v.get('create') is not None or None in v.keys()]
+DECOMPR_FORMATS = [k for k, v in ArchivePrograms.items() \
+                   if v.get('extract') is not None or None in v.keys()]
 
 
 @silent
@@ -45,18 +48,21 @@ class Base(object):
     """ Dummy base class for setting up an interrupt handler. """
     files = {}
     interrupted = False
-    not_first = ["bzip2", "lzma", "shell", "xz"]
-    temp_dir = "/tmp/reccomp"
+    not_multiple = ["bzip2", "lzma", "shell", "xz"]
+    temp_dir = "/tmp/recursive-compression"
 
-    def __init__(self, logger=None):
+    def __init__(self, formats=None, logger=None):
         if logger is None:
             logger = logging.getLogger("main")
-            logger.setHandler(logging.NullHandler())
+            logger.addHandler(logging.NullHandler())
         self.cwd = getcwd()
         self.logger = logger
         self._id = 0
+        self._last = None
         self.__sigint_handler = getsignal(SIGINT)
         signal(SIGINT, self.__interrupt)
+        self.__valid_formats = [f for f in COMPR_FORMATS if f in formats] \
+                         if formats not in [None, "*", "all"] else COMPR_FORMATS
     
     def __interrupt(self, *args):
         """
@@ -92,22 +98,6 @@ class Base(object):
         chdir(self.temp_dir)
     
     @property
-    def ext(self):
-        """
-        Choose a random valid archive extension.
-        """
-        ext = choice(VALID_COMPR_FORMATS)
-        bad = self.round == 1 and len(self.files) > 1 and ext in self.not_first
-        while ext in self._bad_formats or ext == self._last or bad:
-            if bad:
-                self.logger.debug(ext)
-                self.logger.debug("[!] This format can't be used at round 1 for"
-                                  " multiple files")
-            ext = choice(VALID_COMPR_FORMATS)
-        self._last = ext
-        return ext
-    
-    @property
     def arch_name(self):
         """
         Choose a non-existing random archive filename.
@@ -118,6 +108,21 @@ class Base(object):
         while exists(name):
             name = "".join(choice(self.charset) for i in range(self.n))
         return name
+    
+    @property
+    def ext(self):
+        """
+        Choose a random valid archive extension.
+        """
+        algos = set(self.__valid_formats).difference(set(self._bad_formats)) \
+                                         .difference(set(self._wrong_formats))
+        if len(self.files) > 1:
+            algos = algos.difference(set(self.not_multiple))
+        if len(algos) == 0:
+            return
+        ext = choice(list(algos - set([self._last] if len(algos) > 1 else [])))
+        self._last = ext
+        return ext
     
     @property
     def temp_name(self):
@@ -169,6 +174,6 @@ class Base(object):
         for t in m:
             t = t.lower()
             t = SUBSTITUTIONS.get(t, t)
-            if t in VALID_DECOMPR_FORMATS:
+            if t in DECOMPR_FORMATS:
                 return " ".join(m), SHORTNAMES.get(t, t)
         return " ".join(m), None

@@ -27,20 +27,37 @@ class Decompressor(Base):
     """
     cleanup_len = 2
     
-    def __init__(self, archive, display=False, move=False, logger=None):
-        super(Decompressor, self).__init__(logger)
+    def __init__(self, **kwargs):
+        archive = kwargs.pop("archive", None)
+        display = kwargs.pop("display", False)
+        move = kwargs.pop("move", False)
+        super(Decompressor, self).__init__(logger=kwargs.pop("logger", None))
         aname = basename(archive)
         # setup the decompressor
         self.__cleanup = deque([], self.cleanup_len)
         self.__disp = display
         self.archives = [aname]
+        self.data = ""
         self.last = aname
-        self.results = []
         self._to_temp_dir(archive, move=move)
         # decompress until it cannot be anymore
         self.rounds = 0
         while len(self.archives) > 0:
             self.__decompress()
+        # try to reverse bytes if first round did not decompress
+        if self.rounds == 1 and len(self.files) == 1:
+            self.rounds = 0
+            self.archives = self.files.keys()
+            self.files = {}
+            self._to_orig_dir()
+            self._to_temp_dir(archive, move=move)
+            self.logger.debug("Reversing bytes...")
+            with open(aname, 'rb') as f:
+                content = f.read()[::-1]
+            with open(aname, 'wb') as f:
+                f.write(content)
+            while len(self.archives) > 0:
+                self.__decompress()
         files = sorted(self.files.keys())
         # tear down the decompressor
         if self.rounds > 0 and not Base.interrupted:
@@ -49,6 +66,13 @@ class Decompressor(Base):
             for f in files:
                 h, c = self.files[f]
                 print("- {} ({}){}".format(f, h, ["", " x{}".format(c)][c > 1]))
+            if len(self.data) > 0:
+                try:
+                    d = codecs.decode(b(self.data), 'hex_codec')[::-1]
+                    getattr(self.logger, "success", self.logger.info) \
+                        ("Data: {}".format(d))
+                except:
+                    pass
         self._to_orig_dir()
 
     def __decompress(self):
@@ -108,12 +132,25 @@ class Decompressor(Base):
             shutil.rmtree(new[0])
         # find the decompressed files by a diff with the old directory listing
         new = list(set(listdir(".")) - old)
+        warn = True
+        if self.rounds == 0 and len(new) == 0:
+            rename(temp_name, arch_name)
+            new = [arch_name]
+            warn = False
         # now sort decompressed files, displaying usual files if relevant and
         #  adding new archives to the list for future decompression
         for f in new:
             _, ext = Decompressor.format(f)
             if ext is None:
-                if len(new) == 1 and self.last[1] in self.not_first:
+                h = hashlib.sha256_file(f)
+                # if empty file, consider it as hidden data
+                if h == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495" \
+                       "991b7852b855":
+                    self.data += f
+                    remove(f)
+                    self.logger.debug("=> {}".format(f))
+                    continue
+                if len(new) == 1 and self.last[1] in self.not_multiple:
                     f = self.last[0]
                     if not exists(f):
                         shutil.move(self.__cleanup[-1][1], f)
@@ -127,14 +164,15 @@ class Decompressor(Base):
                             getattr(self.logger, "success", self.logger.info)(c)
                     except:
                         pass
-                h, nf, nfp = hashlib.sha256_file(f), f, join(self.cwd, f)
+                nf, nfp = f, join(self.cwd, f)
                 while True:
                     old_h, c = self.files.get(nf) or (None, 0)
                     # if same hashes, increment count ; if count=0, create entry
                     if old_h == h or c == 0:
                         self.files[nf] = (h, c + 1)
-                        #print(listdir(self.temp_dir))
                         shutil.move(nf, nfp)
+                        if warn:
+                            self.logger.warning("File found: {}".format(nf))
                         break
                     # otherwise, update filename to something not existing
                     else:

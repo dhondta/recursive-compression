@@ -30,4 +30,4 @@ if __name__ == '__main__':
     parser.add_argument("-p", dest="printf", action="store_true",
                         help="print resulting file, if possible")
     initialize(globals(), add_time=True)
-    Decompressor(args.archive, args.printf, args.delete, logger=logger)
+    Decompressor(logger=logger, **vars(args))

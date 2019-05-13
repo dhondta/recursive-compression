@@ -28,10 +28,17 @@ if __name__ == '__main__':
                         help="character set of random archive name")
     parser.add_argument("-d", dest="delete", action="store_true",
                         help="delete input files")
+    parser.add_argument("-f", dest="formats", default="all",
+                        help="compression algorithms")
     parser.add_argument("-n", dest="nchars", type=pos_int, default=8,
                         help="length of random archive name")
     parser.add_argument("-r", "--rounds", type=pos_int, default=10,
                         help="number of compression rounds")
+    parser.add_argument("--reverse", action="store_true",
+                        help="reverse byte order")
+    data = parser.add_argument_group("data options")
+    data.add_argument("--data", help="data to be embedded")
+    data.add_argument("--chunks", type=pos_int, default=10,
+                      help="number of chunks the data should be split in")
     initialize(globals(), add_progress=True, add_time=True)
-    Compressor(*args.files, rounds=args.rounds, n=args.nchars,
-               charset=args.charset, pbar=progressbar, logger=logger)
+    Compressor(logger=logger, pbar=progressbar, **vars(args))
