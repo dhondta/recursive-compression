@@ -47,7 +47,7 @@ class Decompressor(Base):
         # try to reverse bytes if first round did not decompress
         if self.rounds == 1 and len(self.files) == 1:
             self.rounds = 0
-            self.archives = self.files.keys()
+            self.archives = list(self.files.keys())
             self.files = {}
             self._to_orig_dir()
             self._to_temp_dir(archive, move=move)
@@ -58,7 +58,7 @@ class Decompressor(Base):
                 f.write(content)
             while len(self.archives) > 0:
                 self.__decompress()
-        files = sorted(self.files.keys())
+        files = sorted(list(self.files.keys()))
         # tear down the decompressor
         if self.rounds > 0 and not Base.interrupted:
             self.logger.info("Rounds: {}".format(self.rounds))
