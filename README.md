@@ -1,9 +1,9 @@
-[![PyPi](https://img.shields.io/pypi/v/recursive-decompressor.svg)](https://pypi.python.org/pypi/recursive-decompressor/)
-[![Python Versions](https://img.shields.io/pypi/pyversions/recursive-decompressor.svg)](https://pypi.python.org/pypi/recursive-decompressor/)
-[![Platform](https://img.shields.io/badge/platform-linux-yellow.svg)](https://pypi.python.org/pypi/recursive-decompressor/)
-[![Known Vulnerabilities](https://snyk.io/test/github/dhondta/recursive-decompressor/badge.svg?targetFile=requirements.txt)](https://snyk.io/test/github/dhondta/recursive-decompressor?targetFile=requirements.txt)
-[![Requirements Status](https://requires.io/github/dhondta/recursive-decompressor/requirements.svg?branch=master)](https://requires.io/github/dhondta/recursive-decompressor/requirements/?branch=master)
-[![License](https://img.shields.io/pypi/l/recursive-decompressor.svg)](https://pypi.python.org/pypi/recursive-decompressor/)
+[![PyPi](https://img.shields.io/pypi/v/recursive-compression.svg)](https://pypi.python.org/pypi/recursive-compression/)
+[![Python Versions](https://img.shields.io/pypi/pyversions/recursive-compression.svg)](https://pypi.python.org/pypi/recursive-compression/)
+[![Platform](https://img.shields.io/badge/platform-linux-yellow.svg)](https://pypi.python.org/pypi/recursive-compression/)
+[![Known Vulnerabilities](https://snyk.io/test/github/dhondta/recursive-compression/badge.svg?targetFile=requirements.txt)](https://snyk.io/test/github/dhondta/recursive-compression?targetFile=requirements.txt)
+[![Requirements Status](https://requires.io/github/dhondta/recursive-compression/requirements.svg?branch=master)](https://requires.io/github/dhondta/recursive-compression/requirements/?branch=master)
+[![License](https://img.shields.io/pypi/l/recursive-compression.svg)](https://pypi.python.org/pypi/recursive-compression/)
 
 
 ## Table of Contents
