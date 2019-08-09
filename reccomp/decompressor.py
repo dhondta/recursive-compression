@@ -11,6 +11,9 @@ from .base import *
 __all__ = ["Decompressor"]
 
 
+HASH_EMPTY = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+
+
 class Decompressor(Base):
     """
     This handles decompression according to multiple algorithms in a temporary
@@ -21,19 +24,22 @@ class Decompressor(Base):
     
     :param archive: archive path or filename
     :param display: display the final result at the end of the decompression
-    :param move:    move the in-scope archive to the temporary folder, do not
+    :param delete:  move the in-scope archive to the temporary folder, do not
                      simply copy it
     :param logger:  logging
     """
     cleanup_len = 2
     
     def __init__(self, **kwargs):
-        archive = kwargs.pop("archive", None)
-        display = kwargs.pop("display", False)
-        move = kwargs.pop("move", False)
-        super(Decompressor, self).__init__(logger=kwargs.pop("logger", None))
+        archive = kwargs.get("archive", None)
+        display = kwargs.get("display", False)
+        move = kwargs.get("delete", False)
+        super(Decompressor, self).__init__(**kwargs)
         aname = basename(archive)
         # setup the decompressor
+        if self.cwd == self.temp_dir:
+            self.logger.warning("Decompressing from the input location ; this"
+                                " may cause unexpected errors")
         self.__cleanup = deque([], self.cleanup_len)
         self.__disp = display
         self.archives = [aname]
@@ -45,26 +51,28 @@ class Decompressor(Base):
         while len(self.archives) > 0:
             self.__decompress()
         # try to reverse bytes if first round did not decompress
-        if self.rounds == 1 and len(self.files) == 1:
+        if self.rounds == 1 and len(self._hashes) == 1:
             self.rounds = 0
-            self.archives = list(self.files.keys())
-            self.files = {}
+            self.archives = list(self._hashes.keys())
             self._to_orig_dir()
             self._to_temp_dir(archive, move=move)
             self.logger.debug("Reversing bytes...")
-            with open(aname, 'rb') as f:
+            with open(aname, 'wb+') as f:
                 content = f.read()[::-1]
-            with open(aname, 'wb') as f:
+                f.seek(0)
                 f.write(content)
             while len(self.archives) > 0:
                 self.__decompress()
-        files = sorted(list(self.files.keys()))
+        files = sorted(list(self._hashes.keys()))
         # tear down the decompressor
-        if self.rounds > 0 and not Base.interrupted:
+        if self.rounds > 0 and not Base.interrupted and not self._silent:
             self.logger.info("Rounds: {}".format(self.rounds))
+            l = list(sorted(set(self._used_formats)))
+            self.logger.info("Algos : {}".format(len(l)))
+            self.logger.debug("[i] Used algorithms: {}".format(",".join(l)))
             self.logger.info("File{}".format(["  :", "s :"][len(files) > 1]))
             for f in files:
-                h, c = self.files[f]
+                h, c = self._hashes[f]
                 print("- {} ({}){}".format(f, h, ["", " x{}".format(c)][c > 1]))
             if len(self.data) > 0:
                 try:
@@ -99,7 +107,8 @@ class Decompressor(Base):
         # now decompress
         old = set(listdir("."))
         self.logger.debug("Decompressing '{}' ({})...".format(a, magic))
-        self.__new_files(old, a, *decompress(new))
+        self.__new_files(old, a, new, decompress(new))
+        self._used_formats.append(ext)
         if Base.interrupted:
             shutil.move(new, Decompressor.ensure_new(join(self.cwd, a)))
             return
@@ -132,7 +141,7 @@ class Decompressor(Base):
             shutil.rmtree(new[0])
         # find the decompressed files by a diff with the old directory listing
         new = list(set(listdir(".")) - old)
-        warn = True
+        warn = not self._silent
         if self.rounds == 0 and len(new) == 0:
             rename(temp_name, arch_name)
             new = [arch_name]
@@ -144,8 +153,7 @@ class Decompressor(Base):
             if ext is None:
                 h = hashlib.sha256_file(f)
                 # if empty file, consider it as hidden data
-                if h == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495" \
-                       "991b7852b855":
+                if h == HASH_EMPTY:
                     self.data += f
                     remove(f)
                     self.logger.debug("=> {}".format(f))
@@ -166,10 +174,10 @@ class Decompressor(Base):
                         pass
                 nf, nfp = f, join(self.cwd, f)
                 while True:
-                    old_h, c = self.files.get(nf) or (None, 0)
+                    old_h, c = self._hashes.get(nf) or (None, 0)
                     # if same hashes, increment count ; if count=0, create entry
                     if old_h == h or c == 0:
-                        self.files[nf] = (h, c + 1)
+                        self._hashes[nf] = (h, c + 1)
                         shutil.move(nf, nfp)
                         if warn:
                             self.logger.warning("File found: {}".format(nf))
@@ -182,7 +190,7 @@ class Decompressor(Base):
                         # NOTE: we do care about files with same hashes as the
                         #        filename could be valuable information ; so, we
                         #        don't check if the hash matches this of another
-                        #        file in the self.files dictionary
+                        #        file in the self._hashes dictionary
             else:
                 # handle here the case when an archive [filename].[ext]
                 #  decompresses to [filename]

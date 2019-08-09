@@ -1,7 +1,7 @@
-#!/usr/bin/python2
+#!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 __author__ = "Alexandre D'Hondt"
-__version__ = "1.1"
+__version__ = "1.2"
 __copyright__ = "A. D'Hondt"
 __license__   = "agpl-3.0"
 __examples__ = ["file1 file2 file3 -r 10", "file -c abcd -n 10", "file -p"]
@@ -34,6 +34,8 @@ if __name__ == '__main__':
                         help="length of random archive name")
     parser.add_argument("-r", "--rounds", type=pos_int, default=10,
                         help="number of compression rounds")
+    parser.add_argument("--no-error", dest="fix", action="store_true",
+                        help="recompress if errors are found")
     parser.add_argument("--reverse", action="store_true",
                         help="reverse byte order")
     data = parser.add_argument_group("data options")

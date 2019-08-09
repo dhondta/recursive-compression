@@ -3,10 +3,12 @@
 import math
 import sys
 from os import listdir, remove, rename
-from os.path import exists, isfile, join, splitext
+from os.path import abspath, basename, exists, isfile, join, splitext
 from string import ascii_letters, digits, printable
+from tinyscript.helpers.utils import pause
 
 from .base import *
+from .decompressor import *
 
 
 __all__ = ["Compressor"]
@@ -27,44 +29,58 @@ class Compressor(Base):
     :param chunks:  number of chunks the data is to be split in
     """
     def __init__(self, **kwargs):
-        files = kwargs.pop("files", [])
-        super(Compressor, self).__init__(formats=kwargs.pop("formats"),
-                                         logger=kwargs.pop("logger"))
+        files = kwargs.get("files", [])
+        super(Compressor, self).__init__(**kwargs)
+        for f in files:
+            self._hashes[basename(f)] = hashlib.sha256_file(f)
         # setup the compressor
-        self.charset = kwargs.pop("charset", ascii_letters + digits)
-        self.n = kwargs.pop("n", 8)
-        self.rounds = max(1, kwargs.pop("rounds", 1000))
-        self.files = sorted([f for f in files if exists(f)])
-        if len(self.files) == 0:
+        self.charset = kwargs.get("charset", ascii_letters + digits)
+        self.n = kwargs.get("n", 8)
+        self.rounds = max(1, kwargs.get("rounds", 1000))
+        files = sorted([f for f in files if exists(f)])
+        if len(files) == 0:
             self.logger.error("No existing file to be archived")
             sys.exit(2)
-        self._bad_formats = []
-        self._wrong_formats = []
-        self._last = None
-        self._pbar = kwargs.pop("pbar", lambda x: None)
-        self._to_temp_dir(*self.files, move=kwargs.pop("move", False))
         # split the data to be embedded if relevant
-        self.data, data, self.chunks = [], kwargs.pop("data"), 1
+        self.data, data, self.chunks = [], kwargs.get("data"), 1
         if data is not None:
-            self.chunks = min(kwargs.pop("chunks", 10),
+            self.chunks = min(kwargs.get("chunks", 10),
                               len(data),
                               self.rounds - 1)
             n = int(math.ceil(float(len(data)) / self.chunks))
             self.data = data[::-1]
             self.data = [self.data[i:i+n] for i in range(0, len(data), n)]
+        self._bad_formats, self._wrong_formats = [], []
+        self._to_temp_dir(*files, move=kwargs.get("move", False))
+        # initialize internal state
+        self.files = files
+        self._used_formats = []
+        self._last = None
+        self._pbar = kwargs.get("pbar", lambda x: None)
         # compress input files
         self.__compress()
+        if len(self.files) == 0:
+            return
+        # if required, check for correct compression ; retry if relevant
+        if kwargs.get("fix", False) and not self.__without_error():
+            # if integrity error, simply retry
+            self._to_orig_dir(move=False)
+            c = Compressor(**kwargs)
+            return
         a = self.files[0]
         # tear down the decompressor
-        if self.round > 0:
-            self.logger.info("Rounds:  {}".format(self.round))
-            self.logger.info("Archive: {}".format(a))
         self._to_orig_dir()
+        if self.round > 0:
+            self.logger.info("Rounds : {}".format(self.round))
+            l = list(sorted(set(self._used_formats)))
+            self.logger.info("Algos  : {}".format(len(l)))
+            self.logger.debug("[i] Used algorithms: {}".format(",".join(l)))
+            self.logger.info("Archive: {}".format(a))
         # reverse bytes if needed
-        if kwargs.pop("reverse", False):
-            with open(a, 'rb') as f:
+        if kwargs.get("reverse", False):
+            with open(a, 'wb+') as f:
                 content = f.read()[::-1]
-            with open(a, 'wb') as f:
+                f.seek(0)
                 f.write(content)
     
     def __compress(self):
@@ -95,8 +111,6 @@ class Compressor(Base):
                               .format("', '".join(self.files)))
             if not self.__rec_compress(clean=i > 0):
                 return
-        for f in self.files:
-            shutil.move(f, join(self.cwd, f))
     
     def __new_archive(self, old):
         """
@@ -124,19 +138,22 @@ class Compressor(Base):
         name = self.arch_name
         clean = kwargs.pop("clean", True)
         # choose a random compression algorithm amongst available ones
-        try:
-            ext = self.ext
-            if ext is None:
-                self.logger.critical("No valid compression algorithm available")
+        ext = self.ext
+        if ext is None:
+            self.logger.critical("No valid compression algorithm available")
+            if len(self._bad_formats) > 0:
                 self.logger.error("Bad formats:\n- {}"
                                   .format("\n- ".join(self._bad_formats)))
+            if len(self._wrong_formats) > 0:
                 self.logger.error("Wrong formats:\n- {}"
                                   .format("\n- ".join(self._wrong_formats)))
-                return False
-            self.logger.debug(ext)
-            tname = "{}.{}".format(name, ext)
+            return False
+        self.logger.debug(ext)
+        tname = "{}.{}".format(name, ext)
+        try:
             # snapshot files listing, compress and get the difference
             old = set(listdir("."))
+            import os
             compress(tname, self.files, **kwargs)
             tname = self.__new_archive(old)
             name, _ = splitext(tname)
@@ -148,16 +165,43 @@ class Compressor(Base):
                         remove(f)
             self.files = [name]
             self._wrong_formats = []
+            self._used_formats.append(ext)
             return True
         except PatoolError as e:
-            if "unknown archive format" in str(e):
+            s = str(e)
+            if "unknown archive format" in s:
                 self.logger.debug("[!] Unknown format")
                 self._bad_formats.append(ext)
-            elif "could not find an executable program" in str(e) or \
-                ("archive format" in str(e) and "not supported" in str(e)):
+            elif "could not find an executable program" in s or \
+                ("archive format" in s and "not supported" in s):
                 self.logger.debug("[!] No tool for this format")
                 self._bad_formats.append(ext)
+            elif "file " in s and " was not found" in s:
+                self.logger.warning("[!] Bad input file")
+                f = s.split("`")[1].split("'")[0]
+                self.files.remove(f)
+                if len(self.files) == 0:
+                    self.logger.critical("Nothing more to compress")
+                    sys.exit(1)
             else:
-                self.logger.debug("[!] Patool error")
+                self.logger.debug("[!] Patool error ({})".format(s))
                 self._wrong_formats.append(ext)
-            return self.__rec_compress(**kwargs)
+            return self.__rec_compress(clean=clean, **kwargs)
+    
+    def __without_error(self):
+        """
+        This decompresses the newly created archive to check for file integrity
+         and returns whether the compression was done without error.
+        """
+        d = Decompressor(archive=self.files[0], logger=self.logger, silent=True,
+                         temp_dir="/tmp/recursive-decompression")
+        if self.rounds != d.rounds:
+            self.logger.debug("[!] integrity check failed (different rounds)")
+            return False
+        for fp, h_before in self._hashes.items():
+            h_after = (d._hashes.get(fp) or [None])[0]
+            if h_before != h_after:
+                self.logger.debug("[!] integrity check failed (bad file)")
+                return False
+        self.logger.debug("[i] integrity check passed")
+        return True

@@ -5,14 +5,15 @@ import logging
 import shutil
 from magic import from_file as get_magic
 from os import chdir, getcwd, listdir, makedirs
-from os.path import basename, exists, join, splitext
+from os.path import basename, dirname, exists, join, splitext
 from patoolib import create_archive, extract_archive, ArchivePrograms
 from patoolib.util import PatoolError
 from random import choice
 from signal import getsignal, signal, SIGINT
 from six import b
+from tempfile import gettempdir
 from tinyscript import hashlib
-from tinyscript.helpers import silent
+from tinyscript.helpers import silent, timeout
 
 
 __all__ = ["b", "codecs", "compress", "decompress", "hashlib", "shutil", "Base",
@@ -35,13 +36,14 @@ def compress(*args, **kwargs):
 
 
 @silent
+@timeout(30)
 def decompress(*args, **kwargs):
     """ Alias for patool.extract_archive, silencing verbose messages. """
     kwargs['verbosity'] = -1
     try:
-        return args[0], extract_archive(*args, **kwargs)
+        return extract_archive(*args, **kwargs)
     except PatoolError:
-        return args[0], None
+        return None
 
 
 class Base(object):
@@ -49,18 +51,24 @@ class Base(object):
     files = {}
     interrupted = False
     not_multiple = ["bzip2", "lzma", "shell", "xz"]
-    temp_dir = "/tmp/recursive-compression"
+    temp_dir = join(gettempdir(), "recursive-compression")
 
-    def __init__(self, formats=None, logger=None):
+    def __init__(self, **kwargs):
+        logger = kwargs.get("logger", None)
         if logger is None:
             logger = logging.getLogger("main")
             logger.addHandler(logging.NullHandler())
         self.cwd = getcwd()
         self.logger = logger
+        self.temp_dir = kwargs.get("temp_dir", None) or Base.temp_dir
+        self._hashes = {}
         self._id = 0
         self._last = None
+        self._silent = kwargs.get("silent", False)
+        self._used_formats = []
         self.__sigint_handler = getsignal(SIGINT)
         signal(SIGINT, self.__interrupt)
+        formats = kwargs.get("formats", None)
         self.__valid_formats = [f for f in COMPR_FORMATS if f in formats] \
                          if formats not in [None, "*", "all"] else COMPR_FORMATS
     
@@ -72,11 +80,17 @@ class Base(object):
         Base.interrupted = True
         signal(SIGINT, self.__sigint_handler)
     
-    def _to_orig_dir(self):
+    def _to_orig_dir(self, move=True):
         """
         This changes directory back to the original one and removes the
          temporary folder.
+         
+        :param move: whether currently managed files should be moved or not to
+                      the original folder
         """
+        if hasattr(self, "files") and move:
+            for f in self.files:
+                shutil.move(f, join(self.cwd, f))
         chdir(self.cwd)
         shutil.rmtree(self.temp_dir)
     
@@ -93,8 +107,10 @@ class Base(object):
             shutil.rmtree(self.temp_dir)
         makedirs(self.temp_dir)
         for fp in files:
-            fn = basename(fp)
-            getattr(shutil, ["copy", "move"][move])(fp, join(self.temp_dir, fn))
+            d = join(self.temp_dir, dirname(fp))
+            if not exists(d):
+                makedirs(d)
+            getattr(shutil, ["copy", "move"][move])(fp, join(self.temp_dir, fp))
         chdir(self.temp_dir)
     
     @property
@@ -103,7 +119,7 @@ class Base(object):
         Choose a non-existing random archive filename.
         """
         if self.round == 1 and len(self.files) == 1:
-            return self.files[0]
+            return basename(self.files[0])
         name = "".join(choice(self.charset) for i in range(self.n))
         while exists(name):
             name = "".join(choice(self.charset) for i in range(self.n))
