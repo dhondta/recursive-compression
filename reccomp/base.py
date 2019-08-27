@@ -110,7 +110,8 @@ class Base(object):
             d = join(self.temp_dir, dirname(fp))
             if not exists(d):
                 makedirs(d)
-            getattr(shutil, ["copy", "move"][move])(fp, join(self.temp_dir, fp))
+            getattr(shutil, ["copy", "move"][move])(fp, join(self.temp_dir,
+                                                             basename(fp)))
         chdir(self.temp_dir)
     
     @property
