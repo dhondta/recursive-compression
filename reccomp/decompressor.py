@@ -57,17 +57,26 @@ class Decompressor(Base):
             self._to_orig_dir()
             self._to_temp_dir(archive, move=move)
             self.logger.debug("Reversing bytes...")
-            with open(aname, 'wb+') as f:
-                content = f.read()[::-1]
-                f.seek(0)
-                f.write(content)
+            # TODO: improve file reversing
+            #  (problem: file should be reversed by block to also handle huge
+            #             archives)
+            with open(aname, 'rb') as f:
+                content = f.read()
+            with open(aname, 'wb') as f:
+                f.write(content[::-1])
             while len(self.archives) > 0:
                 self.__decompress()
         files = sorted(list(self._hashes.keys()))
         # tear down the decompressor
         if self.rounds > 0 and not Base.interrupted and not self._silent:
-            self.logger.info("Rounds: {}".format(self.rounds))
             l = list(sorted(set(self._used_formats)))
+            if len(l) == 0:
+                self.logger.error("Decompression failed")
+                self.logger.warning("If you are sure this is an archive, it "
+                                    "maybe obfuscated with an unknown encoding")
+                self._to_orig_dir()
+                return
+            self.logger.info("Rounds: {}".format(self.rounds))
             self.logger.info("Algos : {}".format(len(l)))
             self.logger.debug("[i] Used algorithms: {}".format(",".join(l)))
             self.logger.info("File{}".format(["  :", "s :"][len(files) > 1]))
@@ -108,7 +117,8 @@ class Decompressor(Base):
         old = set(listdir("."))
         self.logger.debug("Decompressing '{}' ({})...".format(a, magic))
         self.__new_files(old, a, new, decompress(new))
-        self._used_formats.append(ext)
+        if ext is not None:
+            self._used_formats.append(ext)
         if Base.interrupted:
             shutil.move(new, Decompressor.ensure_new(join(self.cwd, a)))
             return
