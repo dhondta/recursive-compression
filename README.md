@@ -39,7 +39,7 @@ usage: rec-comp [-c CHARSET] [-d] [-n NCHARS] [-r ROUNDS] [-h] [-p] [--stats]
                 [--timings] [-v]
                 files [files ...]
 
-RecComp v1.0
+RecComp v3.0
 Author   : Alexandre D'Hondt
 Copyright: © 2019 A. D'Hondt
 License  : GNU Affero General Public License v3.0
@@ -96,7 +96,7 @@ $ rec-comp file1 file2 file3 -r 10 -p
 $ rec-decomp -h
 usage: rec-decomp [-d] [-p] [-h] [--stats] [--timings] [-v] archive
 
-RecDecomp v2.1
+RecDecomp v3.0
 Author   : Alexandre D'Hondt
 Copyright: © 2019 A. D'Hondt
 License  : GNU Affero General Public License v3.0
