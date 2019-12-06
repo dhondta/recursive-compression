@@ -37,5 +37,5 @@ if __name__ == '__main__':
     data.add_argument("--data", help="data to be embedded")
     data.add_argument("--chunks", type=pos_int, default=10,
                       help="number of chunks the data should be split in")
-    initialize(globals(), add_progress=True, add_time=True)
+    initialize(add_progress=True, add_time=True)
     Compressor(logger=logger, pbar=progressbar, **vars(args))
