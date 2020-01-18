@@ -5,7 +5,7 @@ import sys
 from os import listdir, remove, rename
 from os.path import abspath, basename, exists, isfile, join, splitext
 from string import ascii_letters, digits, printable
-from tinyscript.helpers.utils import pause
+from tinyscript.helpers import pause
 
 from .base import *
 from .decompressor import *
