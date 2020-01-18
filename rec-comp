@@ -16,7 +16,7 @@ Note: Password-protected compression is not supported.
 
 
 if __name__ == '__main__':
-    parser.add_argument("files", nargs="+", type=file_exists,
+    parser.add_argument("files", nargs="+", type=ts.file_exists,
                         help="files to be archived")
     parser.add_argument("-c", dest="charset",
                         default=string.ascii_letters+string.digits,
@@ -25,9 +25,9 @@ if __name__ == '__main__':
                         help="delete input files")
     parser.add_argument("-f", dest="formats", default="all",
                         help="compression algorithms")
-    parser.add_argument("-n", dest="nchars", type=pos_int, default=8,
+    parser.add_argument("-n", dest="nchars", type=ts.pos_int, default=8,
                         help="length of random archive name")
-    parser.add_argument("-r", "--rounds", type=pos_int, default=10,
+    parser.add_argument("-r", "--rounds", type=ts.pos_int, default=10,
                         help="number of compression rounds")
     parser.add_argument("--no-error", dest="fix", action="store_true",
                         help="recompress if errors are found")
@@ -35,7 +35,7 @@ if __name__ == '__main__':
                         help="reverse byte order")
     data = parser.add_argument_group("data options")
     data.add_argument("--data", help="data to be embedded")
-    data.add_argument("--chunks", type=pos_int, default=10,
+    data.add_argument("--chunks", type=ts.pos_int, default=10,
                       help="number of chunks the data should be split in")
     initialize(add_progress=True, add_time=True)
     Compressor(logger=logger, pbar=progressbar, **vars(args))
