@@ -1,2 +1,2 @@
 patool
-tinyscript
+tinyscript>=1.22.4
