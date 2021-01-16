@@ -15,7 +15,7 @@
 
 ## Introduction
 
-This tool relies on [Tinyscript](https://github.com/dhondta/tinyscript) and allows to recursively (de)compress nested archives according to various decompression algorithms implemented in [Patool](https://github.com/wummel/patool).
+This tool relies on [Tinyscript](https://github.com/dhondta/tinyscript/) and allows to recursively (de)compress nested archives according to various decompression algorithms implemented in [Patool](https://github.com/wummel/patool).
 
 
 ## Installation
@@ -24,9 +24,9 @@ This tool relies on [Tinyscript](https://github.com/dhondta/tinyscript) and allo
 $ sudo pip install recursive-compression
 ```
 
- > **Behind a proxy ?**
- > 
- > Do not forget to add option `--proxy=http://[user]:[pwd]@[host]:[port]` to your pip command.
+> **Behind a proxy ?**
+> 
+> Do not forget to add option `--proxy=http://[user]:[pwd]@[host]:[port]` to your pip command.
 
 
 ## Quick Start
