@@ -14,7 +14,7 @@ This tool relies on [Tinyscript](https://github.com/dhondta/tinyscript/) and all
 ## Installation
 
 ```session
-$ sudo pip install recursive-compression
+$ pip install recursive-compression
 ```
 
 > **Behind a proxy ?**
