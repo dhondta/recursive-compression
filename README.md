@@ -6,13 +6,6 @@
 [![License](https://img.shields.io/pypi/l/recursive-compression.svg)](https://pypi.python.org/pypi/recursive-compression/)
 
 
-## Table of Contents
-
-   * [Introduction](#introduction)
-   * [Installation](#installation)
-   * [Quick Start](#quick-start)
-
-
 ## Introduction
 
 This tool relies on [Tinyscript](https://github.com/dhondta/tinyscript/) and allows to recursively (de)compress nested archives according to various decompression algorithms implemented in [Patool](https://github.com/wummel/patool).
