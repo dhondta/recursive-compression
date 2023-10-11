@@ -16,26 +16,18 @@ Note: Password-protected compression is not supported.
 
 
 if __name__ == '__main__':
-    parser.add_argument("files", nargs="+", type=ts.file_exists,
-                        help="files to be archived")
-    parser.add_argument("-c", dest="charset",
-                        default=string.ascii_letters+string.digits,
-                        help="character set of random archive name")
-    parser.add_argument("-d", dest="delete", action="store_true",
-                        help="delete input files")
-    parser.add_argument("-f", dest="formats", default="all",
-                        help="compression algorithms")
-    parser.add_argument("-n", dest="nchars", type=ts.pos_int, default=8,
-                        help="length of random archive name")
-    parser.add_argument("-r", "--rounds", type=ts.pos_int, default=10,
-                        help="number of compression rounds")
-    parser.add_argument("--no-error", dest="fix", action="store_true",
-                        help="recompress if errors are found")
-    parser.add_argument("--reverse", action="store_true",
-                        help="reverse byte order")
+    alphanum = string.ascii_letters+string.digits
+    parser.add_argument("files", nargs="+", type=ts.file_exists, help="files to be archived")
+    parser.add_argument("-c", dest="charset", default=alphanum, help="character set of random archive name")
+    parser.add_argument("-d", dest="delete", action="store_true", help="delete input files")
+    parser.add_argument("-f", dest="formats", default="all", help="compression algorithms")
+    parser.add_argument("-n", dest="nchars", type=ts.pos_int, default=8, help="length of random archive name")
+    parser.add_argument("-r", "--rounds", type=ts.pos_int, default=10, help="number of compression rounds")
+    parser.add_argument("--no-error", dest="fix", action="store_true", help="recompress if errors are found")
+    parser.add_argument("--reverse", action="store_true", help="reverse byte order")
     data = parser.add_argument_group("data options")
     data.add_argument("--data", help="data to be embedded")
-    data.add_argument("--chunks", type=ts.pos_int, default=10,
-                      help="number of chunks the data should be split in")
+    data.add_argument("--chunks", type=ts.pos_int, default=10, help="number of chunks the data should be split in")
     initialize(add_progress=True, add_time=True)
     Compressor(logger=logger, pbar=progressbar, **vars(args))
+

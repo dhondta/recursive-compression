@@ -20,9 +20,8 @@ Note: Password-protected compression is not supported yet. If the tool freezes
 
 if __name__ == '__main__':
     parser.add_argument("archive", help="input archive")
-    parser.add_argument("-d", dest="delete", action="store_true",
-                        help="delete input archive")
-    parser.add_argument("-p", dest="printf", action="store_true",
-                        help="print resulting file, if possible")
+    parser.add_argument("-d", dest="delete", action="store_true", help="delete input archive")
+    parser.add_argument("-p", dest="printf", action="store_true", help="print resulting file, if possible")
     initialize(add_time=True)
     Decompressor(logger=logger, **vars(args))
+
